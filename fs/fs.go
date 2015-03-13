@@ -12,9 +12,14 @@ type Fs struct {
 	pathfs.FileSystem
 	Files     map[string]*File
 	filesLock sync.Mutex
+
+	detonate bool
 }
 
 func (f *Fs) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fuse.Status) {
+	if f.detonate {
+		return nil, fuse.EIO
+	}
 	f.filesLock.Lock()
 	defer f.filesLock.Unlock()
 	if name == "" {
@@ -36,6 +41,9 @@ func (f *Fs) GetAttr(name string, context *fuse.Context) (*fuse.Attr, fuse.Statu
 }
 
 func (f *Fs) OpenDir(name string, context *fuse.Context) (c []fuse.DirEntry, code fuse.Status) {
+	if f.detonate {
+		return nil, fuse.EIO
+	}
 	f.filesLock.Lock()
 	defer f.filesLock.Unlock()
 	if name == "" {
@@ -50,6 +58,9 @@ func (f *Fs) OpenDir(name string, context *fuse.Context) (c []fuse.DirEntry, cod
 }
 
 func (f *Fs) Open(name string, flags uint32, context *fuse.Context) (file nodefs.File, code fuse.Status) {
+	if f.detonate {
+		return nil, fuse.EIO
+	}
 	f.filesLock.Lock()
 	defer f.filesLock.Unlock()
 	fsFile, ok := f.Files[name]
@@ -61,6 +72,9 @@ func (f *Fs) Open(name string, flags uint32, context *fuse.Context) (file nodefs
 }
 
 func (f *Fs) Create(name string, flags uint32, mode uint32, context *fuse.Context) (file nodefs.File, code fuse.Status) {
+	if f.detonate {
+		return nil, fuse.EIO
+	}
 	f.filesLock.Lock()
 	defer f.filesLock.Unlock()
 	fsFile := NewFile(name)
@@ -70,6 +84,9 @@ func (f *Fs) Create(name string, flags uint32, mode uint32, context *fuse.Contex
 }
 
 func (f *Fs) Unlink(name string, context *fuse.Context) (code fuse.Status) {
+	if f.detonate {
+		return fuse.EIO
+	}
 	f.filesLock.Lock()
 	defer f.filesLock.Unlock()
 	delete(f.Files, name)
@@ -77,6 +94,9 @@ func (f *Fs) Unlink(name string, context *fuse.Context) (code fuse.Status) {
 }
 
 func (f *Fs) Rename(oldPath string, newPath string, context *fuse.Context) (codee fuse.Status) {
+	if f.detonate {
+		return fuse.EIO
+	}
 	f.filesLock.Lock()
 	defer f.filesLock.Unlock()
 	if oldFile, ok := f.Files[oldPath]; ok {
@@ -84,4 +104,12 @@ func (f *Fs) Rename(oldPath string, newPath string, context *fuse.Context) (code
 		return fuse.OK
 	}
 	return fuse.ENOENT
+}
+
+func (f *Fs) Detonate(path string) {
+	f.detonate = true
+}
+
+func (f *Fs) Defuse(path string) {
+	f.detonate = false
 }

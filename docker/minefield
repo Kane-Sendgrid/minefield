@@ -1,0 +1,14 @@
+FROM golang:1.4.2
+
+RUN apt-get update && apt-get install -y fuse
+
+ENV GOAPP=github.com/Kane-Sendgrid/minefield
+
+ADD . /go/src/${GOAPP}
+WORKDIR /go/src/${GOAPP}
+EXPOSE 8025 8026 8027 9000
+
+RUN go get ${GOAPP}
+RUN go install ${GOAPP}
+
+CMD minefield /tmp/
